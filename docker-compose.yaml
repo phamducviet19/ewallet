@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ewallet-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ewallet_db
+      POSTGRES_USER: ewallet
+      POSTGRES_PASSWORD: ewallet123
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ewallet_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  ewallet_postgres_data:
