@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: e-wallet
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/e_wallet_db?options=-c%20timezone=UTC
+    username: e_wallet
+    password: ewallet123
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+jwt:
+  secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B59703648624E5B4B
+  access-token-expiration: 1800000 # 30 phút (ms)
+  refresh-token-expiration: 604800000 # 7 ngày (ms)

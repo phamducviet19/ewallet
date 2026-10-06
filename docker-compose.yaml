@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgres:16
-    container_name: ewallet-postgres
+    container_name: e-wallet-postgres
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: ewallet_db
-      POSTGRES_USER: ewallet
+      POSTGRES_DB: e_wallet_db
+      POSTGRES_USER: e_wallet
       POSTGRES_PASSWORD: ewallet123
 
     ports:
