@@ -1,7 +1,9 @@
 package com.ewallet.user.dto.request;
 
+import com.ewallet.user.entity.OtpPurpose;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,14 +15,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LoginRequest {
+public class SendOtpRequest {
 
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không đúng định dạng")
     private String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
-    private String password;
-
-    private String otp;
+    @NotNull(message = "Mục đích gửi OTP không được để trống")
+    private OtpPurpose purpose;
 }

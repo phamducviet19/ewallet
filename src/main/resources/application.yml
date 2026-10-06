@@ -19,6 +19,12 @@ spring:
   flyway:
     enabled: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
 jwt:
   secret-key: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B59703648624E5B4B
   access-token-expiration: 1800000 # 30 phút (ms)

@@ -19,5 +19,8 @@ public class AuthResponse {
     @Builder.Default
     private String tokenType = "Bearer";
 
+    @Builder.Default
+    private Boolean otpRequired = false;
+
     private UserResponse user;
 }

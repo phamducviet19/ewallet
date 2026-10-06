@@ -4,6 +4,8 @@ import com.ewallet.common.dto.response.ApiResponse;
 import com.ewallet.user.dto.request.LoginRequest;
 import com.ewallet.user.dto.request.RefreshTokenRequest;
 import com.ewallet.user.dto.request.RegisterRequest;
+import com.ewallet.user.dto.request.SendOtpRequest;
+import com.ewallet.user.dto.request.VerifyOtpRequest;
 import com.ewallet.user.dto.response.AuthResponse;
 import com.ewallet.user.service.AuthService;
 import jakarta.validation.Valid;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -27,13 +29,30 @@ public class AuthController {
         AuthResponse response = authService.register(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Đăng ký tài khoản và khởi tạo ví thành công", response));
+                .body(ApiResponse.success(
+                        "Đăng ký tài khoản thành công. Mã OTP đã được gửi, vui lòng xác thực để kích hoạt ví.",
+                        response));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
+        String message = Boolean.TRUE.equals(response.getOtpRequired())
+                ? "Thông tin hợp lệ. Vui lòng nhập mã OTP để hoàn tất đăng nhập."
+                : "Đăng nhập thành công";
+        return ResponseEntity.ok(ApiResponse.success(message, response));
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        AuthResponse response = authService.verifyOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("Xác thực mã OTP thành công", response));
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<ApiResponse<Void>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
+        authService.sendOtp(request);
+        return ResponseEntity.ok(ApiResponse.success("Mã OTP mới đã được gửi thành công", null));
     }
 
     @PostMapping("/refresh-token")
@@ -48,4 +67,3 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
     }
 }
-

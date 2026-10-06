@@ -96,18 +96,18 @@ graph TD
   - `JwtAuthenticationEntryPoint` & `CustomAccessDeniedHandler`: Chuẩn hóa 401 & 403 response dạng JSON.
   - `SecurityConfig`: Cấu hình stateless session, CORS, phân quyền endpoint theo Roles (`USER`, `ADMIN`).
 - [x] **2.2. Authentication Service & APIs:**
-  - `POST /api/v1/auth/register`:
+  - `POST /auth/register`:
     - Validate email, phone, password.
     - Mã hóa password bằng BCrypt, gán role `USER`.
     - **Thực thi nghiệp vụ BR-01:** Sau khi tạo user, kích hoạt tạo ngay 1 Wallet mặc định (balance = 0, currency = VND, status = ACTIVE).
-  - `POST /api/v1/auth/login`: Xác thực thông tin, kiểm tra trạng thái khóa (LOCKED), trả về Access Token + Refresh Token + User profile.
-  - `POST /api/v1/auth/refresh-token`: Cấp mới Access Token bằng Refresh Token hợp lệ.
-  - `POST /api/v1/auth/logout`: Endpoint đăng xuất.
+  - `POST /auth/login`: Xác thực thông tin, kiểm tra trạng thái khóa (LOCKED), trả về Access Token + Refresh Token + User profile.
+  - `POST /auth/refresh-token`: Cấp mới Access Token bằng Refresh Token hợp lệ.
+  - `POST /auth/logout`: Endpoint đăng xuất.
 - [x] **2.3. User Profile & Admin Management APIs:**
-  - `GET /api/v1/users/me`: Xem thông tin tài khoản hiện tại qua token.
-  - `PUT /api/v1/users/me`: Cập nhật họ tên, số điện thoại (kiểm tra trùng lặp).
-  - `GET /api/v1/admin/users`: Admin tra cứu danh sách người dùng kèm phân trang, lọc theo trạng thái/email/tên.
-  - `PATCH /api/v1/admin/users/{id}/status`: Admin khóa (`LOCKED`) hoặc mở khóa (`ACTIVE`) người dùng.
+  - `GET /users/me`: Xem thông tin tài khoản hiện tại qua token.
+  - `PUT /users/me`: Cập nhật họ tên, số điện thoại (kiểm tra trùng lặp).
+  - `GET /admin/users`: Admin tra cứu danh sách người dùng kèm phân trang, lọc theo trạng thái/email/tên.
+  - `PATCH /admin/users/{id}/status`: Admin khóa (`LOCKED`) hoặc mở khóa (`ACTIVE`) người dùng.
 
 ---
 
@@ -125,10 +125,10 @@ graph TD
     - `wallet_id`, `transaction_id`, `entry_type` (`CREDIT` hoặc `DEBIT`).
     - `amount`, `balance_after`, `created_at`.
 - [ ] **3.4. Wallet APIs:**
-  - `GET /api/v1/wallets/my-wallet`: Xem thông tin ví, số dư và trạng thái của user đang đăng nhập.
-  - `GET /api/v1/wallets/statements`: Xem lịch sử biến động số dư (hỗ trợ phân trang và sắp xếp).
-  - `PATCH /api/v1/admin/wallets/{id}/freeze`: Admin đóng băng ví.
-  - `PATCH /api/v1/admin/wallets/{id}/unfreeze`: Admin mở đóng băng ví.
+  - `GET /wallets/my-wallet`: Xem thông tin ví, số dư và trạng thái của user đang đăng nhập.
+  - `GET /wallets/statements`: Xem lịch sử biến động số dư (hỗ trợ phân trang và sắp xếp).
+  - `PATCH /admin/wallets/{id}/freeze`: Admin đóng băng ví.
+  - `PATCH /admin/wallets/{id}/unfreeze`: Admin mở đóng băng ví.
 
 ---
 
@@ -207,25 +207,25 @@ graph TD
     - Tạo thông báo cho Sender: "Bạn đã chuyển thành công X VND tới người dùng Y".
     - Tạo thông báo cho Receiver: "Bạn đã nhận được X VND từ người dùng Z".
   - APIs cho User:
-    - `GET /api/v1/notifications`: Xem danh sách thông báo (phân trang).
-    - `PATCH /api/v1/notifications/{id}/read`: Đánh dấu đã đọc.
+    - `GET /notifications`: Xem danh sách thông báo (phân trang).
+    - `PATCH /notifications/{id}/read`: Đánh dấu đã đọc.
 - [ ] **7.2. Audit Log Module:**
   - Sử dụng Spring AOP (`@AuditAction`) hoặc Spring Event để ghi vết mọi hành vi nhạy cảm: `LOGIN`, `TRANSFER`, `DEPOSIT`, `WITHDRAW`, `LOCK_USER`, `FREEZE_WALLET`.
   - Thu thập: `userId`, `action`, `entityType`, `entityId`, `metadata` (JSONB), `ipAddress`, `createdAt`.
   - Lưu vào bảng `audit_logs`.
   - API cho Admin:
-    - `GET /api/v1/admin/audit-logs`: Tra cứu audit log có bộ lọc theo `userId`, `action`, khoảng thời gian.
+    - `GET /admin/audit-logs`: Tra cứu audit log có bộ lọc theo `userId`, `action`, khoảng thời gian.
 
 ---
 
 ### Phase 8: Admin Module & Dashboard
-- [ ] **8.1. Thống kê Dashboard (`GET /api/v1/admin/dashboard`):**
+- [ ] **8.1. Thống kê Dashboard (`GET /admin/dashboard`):**
   - Tổng số User (Active, Locked).
   - Tổng số Ví và tổng số dư lưu hành trong hệ thống.
   - Tổng khối lượng giao dịch trong ngày/tháng (Volume & Transaction count).
   - Tỷ lệ giao dịch Success vs Failed.
 - [ ] **8.2. Quản lý Giao dịch:**
-  - `GET /api/v1/admin/transactions`: Tra cứu toàn bộ giao dịch hệ thống kèm filter linh hoạt (Reference, Type, Status, FromDate, ToDate) sử dụng Spring Data JPA Specification.
+  - `GET /admin/transactions`: Tra cứu toàn bộ giao dịch hệ thống kèm filter linh hoạt (Reference, Type, Status, FromDate, ToDate) sử dụng Spring Data JPA Specification.
 
 ---
 

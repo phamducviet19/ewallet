@@ -5,8 +5,11 @@ import com.ewallet.common.exception.ErrorCode;
 import com.ewallet.user.dto.request.LoginRequest;
 import com.ewallet.user.dto.request.RefreshTokenRequest;
 import com.ewallet.user.dto.request.RegisterRequest;
+import com.ewallet.user.dto.request.SendOtpRequest;
+import com.ewallet.user.dto.request.VerifyOtpRequest;
 import com.ewallet.user.dto.response.AuthResponse;
 import com.ewallet.user.dto.response.UserResponse;
+import com.ewallet.user.entity.OtpPurpose;
 import com.ewallet.user.entity.Role;
 import com.ewallet.user.entity.User;
 import com.ewallet.user.entity.UserStatus;
@@ -14,6 +17,7 @@ import com.ewallet.user.repository.RoleRepository;
 import com.ewallet.user.repository.UserRepository;
 import com.ewallet.user.security.JwtTokenProvider;
 import com.ewallet.user.service.AuthService;
+import com.ewallet.user.service.OtpService;
 import com.ewallet.wallet.entity.Wallet;
 import com.ewallet.wallet.entity.WalletStatus;
 import com.ewallet.wallet.repository.WalletRepository;
@@ -39,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final WalletRepository walletRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final OtpService otpService;
 
     @Override
     @Transactional
@@ -67,30 +72,19 @@ public class AuthServiceImpl implements AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // BR-01: Tạo ví chính mặc định (balance = 0, currency = VND)
-        Wallet wallet = Wallet.builder()
-                .user(savedUser)
-                .balance(BigDecimal.ZERO)
-                .currency("VND")
-                .status(WalletStatus.ACTIVE)
-                .build();
-        walletRepository.save(wallet);
+        // Sinh mã OTP đăng ký và gửi thông báo
+        otpService.generateAndSendOtp(savedUser, OtpPurpose.REGISTER);
 
-        log.info("Registered user [{}] and created default wallet successfully", email);
-
-        List<String> roles = List.of(userRole.getName());
-        String accessToken = jwtTokenProvider.generateAccessToken(savedUser.getId(), savedUser.getEmail(), roles);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(savedUser.getId(), savedUser.getEmail());
+        log.info("Registered user [{}] successfully. Waiting for OTP verification.", email);
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .otpRequired(true)
                 .user(UserResponse.from(savedUser))
                 .build();
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().toLowerCase().trim();
 
@@ -105,17 +99,56 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.USER_LOCKED);
         }
 
-        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), roles);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail());
+        // Nếu client truyền kèm OTP, tiến hành xác thực ngay
+        if (StringUtils.hasText(request.getOtp())) {
+            otpService.verifyOtp(email, request.getOtp().trim(), OtpPurpose.LOGIN);
+            return generateAuthResponse(user);
+        }
 
-        log.info("User [{}] logged in successfully", email);
+        // Nếu không có OTP, sinh mã OTP đăng nhập và yêu cầu xác thực 2 bước
+        otpService.generateAndSendOtp(user, OtpPurpose.LOGIN);
+
+        log.info("User [{}] provided valid credentials. OTP sent for 2FA verification.", email);
 
         return AuthResponse.builder()
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .otpRequired(true)
                 .user(UserResponse.from(user))
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse verifyOtp(VerifyOtpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        User user = otpService.verifyOtp(email, request.getOtp().trim(), request.getPurpose());
+
+        // Nếu là xác thực đăng ký: khởi tạo ví chính mặc định nếu chưa có (BR-01)
+        if (request.getPurpose() == OtpPurpose.REGISTER && !walletRepository.existsByUserId(user.getId())) {
+            Wallet wallet = Wallet.builder()
+                    .user(user)
+                    .balance(BigDecimal.ZERO)
+                    .currency("VND")
+                    .status(WalletStatus.ACTIVE)
+                    .build();
+            walletRepository.save(wallet);
+            log.info("Created default wallet for verified user [{}]", email);
+        }
+
+        return generateAuthResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public void sendOtp(SendOtpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new AppException(ErrorCode.USER_LOCKED);
+        }
+
+        otpService.generateAndSendOtp(user, request.getPurpose());
     }
 
     @Override
@@ -135,22 +168,27 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.USER_LOCKED);
         }
 
-        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
-        String newAccessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), roles);
-        String newRefreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail());
-
-        return AuthResponse.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
-                .user(UserResponse.from(user))
-                .build();
+        return generateAuthResponse(user);
     }
 
     @Override
     public void logout() {
         // Stateless JWT logout - Client discards tokens.
-        // In Phase 6 with Redis, we can blacklist the access token until its TTL expires.
+        // In Phase 6 with Redis, we can blacklist the access token until its TTL
+        // expires.
         log.info("User requested logout");
     }
-}
 
+    private AuthResponse generateAuthResponse(User user) {
+        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), roles);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .otpRequired(false)
+                .user(UserResponse.from(user))
+                .build();
+    }
+}
